@@ -19,7 +19,8 @@ import {
   ShoppingBag,
   Utensils,
   Baby,
-  User
+  User,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -195,8 +196,131 @@ export default function AdminPage() {
     }
   };
 
-  // Export PDF Report function
-  const handleExportPDF = () => {
+  // 1. Export PDF for Building Reception (ONLY CONFIRMED GUESTS, ALPHABETICAL)
+  const handleExportPortariaPDF = () => {
+    if (!data || !data.convidados) return;
+
+    const confirmados = data.convidados
+      .filter((c) => c.status === 'confirmado')
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+    if (confirmados.length === 0) {
+      alert('Ainda não há nenhum convidado com presença confirmada para gerar a lista da portaria.');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Por favor, permita pop-ups no navegador para gerar o PDF da portaria.');
+      return;
+    }
+
+    const stats = data.stats || {};
+    const rows = confirmados
+      .map((c, index) => {
+        const isCrianca = c.criancas_qtd > 0 && c.adultos_qtd === 0;
+        const tipoLabel = isCrianca ? 'Criança' : 'Adulto';
+
+        return `
+          <tr>
+            <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold; text-align: center; width: 40px;">${index + 1}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-weight: 700; font-size: 13px;">${c.nome}</td>
+            <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; text-align: center; font-size: 11px;">${tipoLabel}</td>
+            <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; width: 140px; color: #9ca3af; font-size: 10px;">_____________________</td>
+            <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; width: 120px; color: #9ca3af; font-size: 10px;">[ &nbsp; ] Entrada: ___:___</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Lista de Acesso Portaria — Aniversário Gustavo & Michele</title>
+        <style>
+          @page { size: A4; margin: 12mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #111827; margin: 0; padding: 15px; font-size: 12px; }
+          .header { border-bottom: 2px solid #111827; padding-bottom: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: flex-end; }
+          .title { font-size: 18px; font-weight: 800; margin: 0; color: #000; }
+          .subtitle { font-size: 11px; color: #4b5563; margin-top: 3px; }
+          .info-banner { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+          .info-item { font-size: 11px; }
+          .info-item strong { color: #000; font-size: 13px; }
+          table { width: 100%; border-collapse: collapse; text-align: left; font-size: 11px; margin-top: 6px; }
+          th { background: #f3f4f6; padding: 8px 10px; font-size: 10px; text-transform: uppercase; font-weight: 800; color: #374151; border-bottom: 2px solid #9ca3af; }
+          .footer { margin-top: 30px; display: flex; justify-content: space-between; font-size: 11px; color: #4b5563; border-top: 1px solid #d1d5db; padding-top: 15px; }
+          @media print {
+            body { padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1 class="title">📋 LISTA DE ACESSO PARA PORTARIA / RECEPÇÃO</h1>
+            <div class="subtitle">Evento: Comemoração de Aniversário no Salão de Festas • Rua Cajuru 89, Belenzinho</div>
+          </div>
+          <div style="text-align: right; font-size: 10px; color: #6b7280;">
+            <div>Data do Evento: <strong>06/09/2026 (Domingo)</strong></div>
+            <div>Horário: <strong>A partir das 13h30</strong></div>
+          </div>
+        </div>
+
+        <div class="info-banner">
+          <div class="info-item">
+            Anfitriões: <strong>Gustavo & Michele</strong>
+          </div>
+          <div class="info-item">
+            Total Autorizados: <strong>${confirmados.length} Pessoas</strong> (${stats.totalAdultos || 0} Adultos • ${stats.totalCriancas || 0} Crianças)
+          </div>
+          <div class="info-item" style="color: #059669; font-weight: bold;">
+            ✓ Apenas Convidados Confirmados
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align: center;">Nº</th>
+              <th>Nome Completo do Convidado</th>
+              <th style="text-align: center;">Tipo</th>
+              <th>Documento (RG / CPF)</th>
+              <th>Controle de Entrada</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          <div>
+            Data de Emissão: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+          </div>
+          <div>
+            Visto da Portaria: _____________________________________
+          </div>
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
+  // 2. Export PDF Complete Report (All Guests + BBQ Provisions)
+  const handleExportRelatorioPDF = () => {
     if (!data || !data.convidados) return;
 
     const printWindow = window.open('', '_blank');
@@ -471,20 +595,30 @@ export default function AdminPage() {
           <button
             onClick={loadDashboard}
             disabled={loading}
-            className="flex items-center gap-2 py-2 px-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-zinc-200 transition-all"
+            className="flex items-center gap-2 py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-zinc-200 transition-all"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Atualizar</span>
           </button>
 
-          {/* Export PDF Button */}
+          {/* Dedicated Building Portaria PDF Button */}
           <button
-            onClick={handleExportPDF}
-            className="flex items-center gap-2 py-2 px-3.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-semibold text-white transition-all"
-            title="Gerar e Imprimir Relatório em PDF"
+            onClick={handleExportPortariaPDF}
+            className="flex items-center gap-2 py-2 px-3.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-xs font-bold text-emerald-300 transition-all shadow-sm"
+            title="Gerar Lista de Acesso para a Portaria do Prédio (Apenas Confirmados em Ordem Alfabética)"
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>Lista Portaria (PDF)</span>
+          </button>
+
+          {/* Export Complete Management PDF Button */}
+          <button
+            onClick={handleExportRelatorioPDF}
+            className="flex items-center gap-2 py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-semibold text-white transition-all"
+            title="Gerar Relatório Completo com Lista de Compras"
           >
             <FileText className="w-3.5 h-3.5 text-zinc-300" />
-            <span>Exportar PDF</span>
+            <span>Relatório Completo (PDF)</span>
           </button>
 
           <button
