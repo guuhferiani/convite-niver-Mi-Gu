@@ -917,17 +917,18 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="text-center text-xs text-zinc-500 space-y-2 border-t border-white/10 pt-8 mt-16">
-        <p>Comemoração de Aniversário • Gustavo (36) & Michele (34)</p>
-        <p>06 de Setembro de 2026 às 13h30 • Rua Cajuru 89, Belenzinho</p>
-        <div className="pt-2">
+      <footer className="text-center text-xs text-zinc-500 border-t border-white/10 pt-8 mt-16">
+        <p>
+          Feito por{' '}
           <a
-            href="/admin"
-            className="text-zinc-400 hover:text-white transition-colors underline decoration-dotted"
+            href="https://github.com/guuhferiani"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-zinc-300 hover:text-white font-medium transition-colors underline decoration-zinc-600 hover:decoration-white"
           >
-            Área dos Aniversariantes (Painel de Gestão)
+            Gustavo
           </a>
-        </div>
+        </p>
       </footer>
     </main>
   );
