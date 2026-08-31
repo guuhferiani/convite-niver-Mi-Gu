@@ -924,7 +924,7 @@ export default function HomePage() {
             href="https://github.com/guuhferiani"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-zinc-300 hover:text-white font-medium transition-colors underline decoration-zinc-600 hover:decoration-white"
+            className="text-zinc-300 hover:text-white font-medium transition-colors no-underline"
           >
             Gustavo
           </a>
