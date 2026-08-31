@@ -51,9 +51,6 @@ export async function POST(request) {
     const {
       id,
       status,
-      adultos_qtd = 1,
-      criancas_qtd = 0,
-      acompanhantes_nomes = '',
       telefone = '',
       mensagem = '',
       restricao_alimentar = ''
@@ -66,10 +63,33 @@ export async function POST(request) {
       );
     }
 
-    const agora = new Date().toISOString();
-    const adultos = status === 'confirmado' ? Math.max(1, parseInt(adultos_qtd, 10) || 1) : 0;
-    const criancas = status === 'confirmado' ? Math.max(0, parseInt(criancas_qtd, 10) || 0) : 0;
     const guestId = parseInt(id, 10);
+
+    // Check if the guest was pre-configured as a child or adult
+    const existing = await sql`SELECT adultos_qtd, criancas_qtd FROM convidados WHERE id = ${guestId}`;
+    if (!existing || existing.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Convidado não encontrado' },
+        { status: 404 }
+      );
+    }
+
+    const isCrianca = existing[0].criancas_qtd > 0 && existing[0].adultos_qtd === 0;
+
+    let adultos = 0;
+    let criancas = 0;
+
+    if (status === 'confirmado') {
+      if (isCrianca) {
+        criancas = 1;
+        adultos = 0;
+      } else {
+        adultos = 1;
+        criancas = 0;
+      }
+    }
+
+    const agora = new Date().toISOString();
 
     const result = await sql`
       UPDATE convidados
@@ -77,7 +97,6 @@ export async function POST(request) {
         status = ${status},
         adultos_qtd = ${adultos},
         criancas_qtd = ${criancas},
-        acompanhantes_nomes = ${acompanhantes_nomes ? acompanhantes_nomes.trim() : null},
         telefone = ${telefone ? telefone.trim() : null},
         mensagem = ${mensagem ? mensagem.trim() : null},
         restricao_alimentar = ${restricao_alimentar ? restricao_alimentar.trim() : null},
@@ -86,13 +105,6 @@ export async function POST(request) {
       WHERE id = ${guestId}
       RETURNING *
     `;
-
-    if (!result || result.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Convidado não encontrado' },
-        { status: 404 }
-      );
-    }
 
     return new NextResponse(
       JSON.stringify({
@@ -109,9 +121,9 @@ export async function POST(request) {
       }
     );
   } catch (error) {
-    console.error('Erro ao atualizar RSVP:', error);
+    console.error('Erro ao atualizar presença do convidado:', error);
     return NextResponse.json(
-      { success: false, error: 'Erro ao salvar confirmação no banco de dados' },
+      { success: false, error: 'Erro interno ao salvar confirmação' },
       { status: 500 }
     );
   }

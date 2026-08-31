@@ -18,7 +18,10 @@ import {
   ArrowLeft,
   RefreshCw,
   ShoppingBag,
-  Utensils
+  Utensils,
+  Baby,
+  User,
+  Sparkles
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -29,17 +32,17 @@ export default function AdminPage() {
   // Dashboard state
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('todos'); // 'todos' | 'confirmado' | 'pendente' | 'recusado'
+  const [filterStatus, setFilterStatus] = useState('todos'); // 'todos' | 'confirmado' | 'pendente' | 'recusado' | 'crianca' | 'adulto'
   const [searchTerm, setSearchTerm] = useState('');
   const [useProjection, setUseProjection] = useState(false); // real vs projected
 
   // New guest modal/form
   const [showAddModal, setShowAddModal] = useState(false);
   const [newNome, setNewNome] = useState('');
-  const [newAdultos, setNewAdultos] = useState(1);
-  const [newCriancas, setNewCriancas] = useState(0);
+  const [newIsCrianca, setNewIsCrianca] = useState(false);
   const [newTelefone, setNewTelefone] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [togglingId, setTogglingId] = useState(null);
 
   // Check saved session in sessionStorage
   useEffect(() => {
@@ -83,6 +86,61 @@ export default function AdminPage() {
     }
   }, [isAuthenticated]);
 
+  // Toggle Guest Type between Adulto and Crianca
+  const handleToggleGuestType = async (convidado) => {
+    const currentIsCrianca = convidado.criancas_qtd > 0 && convidado.adultos_qtd === 0;
+    const nextIsCrianca = !currentIsCrianca;
+
+    setTogglingId(convidado.id);
+
+    // Optimistic UI update
+    setData((prev) => {
+      if (!prev) return prev;
+      const updatedConvidados = prev.convidados.map((c) => {
+        if (c.id === convidado.id) {
+          return {
+            ...c,
+            adultos_qtd: nextIsCrianca ? 0 : 1,
+            criancas_qtd: nextIsCrianca ? 1 : 0
+          };
+        }
+        return c;
+      });
+
+      return {
+        ...prev,
+        convidados: updatedConvidados
+      };
+    });
+
+    try {
+      const res = await fetch('/api/admin/convidados', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: convidado.id,
+          is_crianca: nextIsCrianca,
+          pin
+        })
+      });
+
+      const json = await res.json();
+      if (!json.success) {
+        alert(json.error || 'Erro ao alterar tipo do convidado');
+        await loadDashboard();
+      } else {
+        // Reload dashboard to refresh accurate BBQ metrics
+        await loadDashboard();
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro de conexão ao alterar tipo');
+      await loadDashboard();
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   // Add new guest
   const handleAddGuest = async (e) => {
     e.preventDefault();
@@ -95,8 +153,7 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nome: newNome,
-          adultos_qtd: newAdultos,
-          criancas_qtd: newCriancas,
+          is_crianca: newIsCrianca,
           telefone: newTelefone,
           pin
         })
@@ -105,6 +162,7 @@ export default function AdminPage() {
       if (json.success) {
         setNewNome('');
         setNewTelefone('');
+        setNewIsCrianca(false);
         setShowAddModal(false);
         await loadDashboard();
       } else {
@@ -120,7 +178,9 @@ export default function AdminPage() {
 
   // Delete guest
   const handleDeleteGuest = async (id, nome) => {
-    if (!confirm(`Tem certeza que deseja remover "${nome}" da lista?`)) return;
+    if (!confirm(`Tem certeza que deseja remover ${nome} da lista de convidados?`)) {
+      return;
+    }
 
     try {
       const res = await fetch(`/api/admin/convidados?id=${id}&pin=${pin}`, {
@@ -130,107 +190,98 @@ export default function AdminPage() {
       if (json.success) {
         await loadDashboard();
       } else {
-        alert(json.error || 'Erro ao excluir');
+        alert(json.error || 'Erro ao remover');
       }
     } catch (err) {
       console.error(err);
-      alert('Erro ao excluir convidado');
+      alert('Erro ao conectar para remover');
     }
   };
 
-  // Filtered convidados list
-  const filteredList = useMemo(() => {
-    if (!data?.convidados) return [];
-    return data.convidados.filter((c) => {
-      const matchesStatus = filterStatus === 'todos' || c.status === filterStatus;
-      const term = searchTerm.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const nomeNorm = c.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const matchesSearch = !searchTerm.trim() || nomeNorm.includes(term);
-      return matchesStatus && matchesSearch;
+  // Export CSV
+  const handleExportCSV = () => {
+    if (!data || !data.convidados) return;
+
+    const headers = ['#', 'Nome', 'Tipo', 'Status', 'Confirmado Em', 'Telefone', 'Recado'];
+    const rows = data.convidados.map((c) => {
+      const tipo = c.criancas_qtd > 0 && c.adultos_qtd === 0 ? 'Criança' : 'Adulto';
+      return [
+        c.list_index,
+        `"${c.nome.replace(/"/g, '""')}"`,
+        tipo,
+        c.status,
+        c.confirmado_em ? new Date(c.confirmado_em).toLocaleString('pt-BR') : 'Pendente',
+        `"${c.telefone || ''}"`,
+        `"${(c.mensagem || '').replace(/"/g, '""')}"`
+      ];
     });
-  }, [data, filterStatus, searchTerm]);
 
-  // Generate WhatsApp reminder link for a pending guest
-  const generateWhatsAppReminder = (convidado) => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const link = `${origin}/#rsvp-section`;
-    const text = encodeURIComponent(
-      `Olá ${convidado.nome}! Tudo bem? 🥳\n\nEstamos organizando a lista e a quantidade de comida para o nosso aniversário (Gustavo 36 & Michele 34 no dia 06/09).\n\nVocê consegue confirmar sua presença neste link?\n👉 ${link}\n\nEsperamos você lá!`
-    );
-    const phone = convidado.telefone ? convidado.telefone.replace(/\D/g, '') : '';
-    if (phone) {
-      return `https://wa.me/55${phone}?text=${text}`;
-    }
-    return `https://api.whatsapp.com/send?text=${text}`;
-  };
-
-  // Export to CSV
-  const exportCsv = () => {
-    if (!data?.convidados) return;
-    const headers = [
-      '# Lista',
-      'Nome',
-      'Status',
-      'Adultos',
-      'Criancas',
-      'Total Pessoas',
-      'Acompanhantes',
-      'Telefone',
-      'Restricao Alimentar',
-      'Mensagem',
-      'Confirmado Em'
-    ];
-
-    const rows = data.convidados.map((c) => [
-      c.list_index,
-      `"${c.nome}"`,
-      c.status,
-      c.status === 'confirmado' ? c.adultos_qtd : 0,
-      c.status === 'confirmado' ? c.criancas_qtd : 0,
-      c.status === 'confirmado' ? (c.adultos_qtd || 1) + (c.criancas_qtd || 0) : 0,
-      `"${c.acompanhantes_nomes || ''}"`,
-      `"${c.telefone || ''}"`,
-      `"${c.restricao_alimentar || ''}"`,
-      `"${(c.mensagem || '').replace(/"/g, '""')}"`,
-      c.confirmado_em ? new Date(c.confirmado_em).toLocaleString('pt-BR') : ''
-    ]);
-
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `convidados_aniversario_gustavo_michele_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `lista-aniversario-gustavo-michele-${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Food calculator active choice
+  // Generate WhatsApp reminder link
+  const generateWhatsAppReminder = (convidado) => {
+    const text = encodeURIComponent(
+      `Olá, ${convidado.nome}! 🎉\n\nEstamos organizando o churrasco de aniversário do Gustavo (36) e da Michele (34) no dia 06/09 às 13h30!\n\nPoderia confirmar sua presença no link oficial abaixo?\nhttps://convite-niver-mi-gu.vercel.app\n\nValeu!`
+    );
+    return `https://wa.me/?text=${text}`;
+  };
+
+  // Filter list
+  const filteredList = useMemo(() => {
+    if (!data || !data.convidados) return [];
+
+    return data.convidados.filter((c) => {
+      // Search
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase();
+        if (!c.nome.toLowerCase().includes(term)) return false;
+      }
+
+      // Status filter
+      if (filterStatus === 'confirmado') return c.status === 'confirmado';
+      if (filterStatus === 'pendente') return c.status === 'pendente';
+      if (filterStatus === 'recusado') return c.status === 'recusado';
+      if (filterStatus === 'crianca') return c.criancas_qtd > 0 && c.adultos_qtd === 0;
+      if (filterStatus === 'adulto') return !(c.criancas_qtd > 0 && c.adultos_qtd === 0);
+
+      return true;
+    });
+  }, [data, filterStatus, searchTerm]);
+
+  // Current active provision calculation
   const activeCalc = useProjection ? data?.calculoComidaPotencial : data?.calculoComida;
 
-  // PIN Login Screen
+  // Render Login PIN Screen if not authenticated
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-md w-full glass-panel-glow p-8 rounded-3xl text-center border border-white/20">
+      <main className="min-h-screen flex items-center justify-center p-4">
+        <div className="w-full max-w-md glass-panel-glow rounded-3xl p-8 border border-white/20 shadow-glow-subtle text-center">
           <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 text-white flex items-center justify-center mx-auto mb-4 shadow-glow-white">
             <Lock className="w-7 h-7" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2 font-display">
-            Painel dos Aniversariantes
-          </h1>
+          <h1 className="text-2xl font-bold text-white mb-2 font-display">Painel de Gestão</h1>
           <p className="text-zinc-400 text-xs sm:text-sm mb-6">
-            Área exclusiva para Gustavo e Michele gerenciarem confirmações e compras de comida.
+            Área restrita de Gustavo & Michele para controle de confirmações e cálculo de churrasco.
           </p>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <input
                 type="password"
-                placeholder="Digite o PIN de acesso"
+                placeholder="Digite o PIN de 4 dígitos"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
-                className="w-full text-center tracking-widest text-lg font-bold glass-input py-3 rounded-xl text-white placeholder-zinc-500"
+                maxLength={10}
+                className="w-full glass-input px-4 py-3.5 rounded-2xl text-center text-xl tracking-widest text-white placeholder-zinc-500 font-mono font-bold"
                 autoFocus
               />
               {pinError && <p className="text-rose-400 text-xs mt-2">{pinError}</p>}
@@ -238,69 +289,69 @@ export default function AdminPage() {
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-sm shadow-glow-white transition-all"
+              className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-sm transition-all shadow-glow-white"
             >
-              Acessar Painel 🚀
+              Acessar Painel
             </button>
           </form>
 
-          <div className="mt-6 pt-4 border-t border-white/10">
+          <div className="mt-6 pt-6 border-t border-white/10">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors"
+              className="text-xs text-zinc-400 hover:text-white flex items-center justify-center gap-1.5 transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Voltar para a página inicial</span>
+              <span>Voltar para a página do convite</span>
             </Link>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen pb-20 pt-6 sm:pt-10 px-4 sm:px-8 max-w-7xl mx-auto">
+    <main className="min-h-screen pb-20 pt-6 px-4 sm:px-8 max-w-7xl mx-auto">
       {/* Top Bar Navigation */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-white/10">
+        <div className="flex items-center gap-3">
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white font-medium mb-1 transition-colors"
+            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-all"
+            title="Voltar ao Convite"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Ver Página do Convite (RSVP)</span>
+            <ArrowLeft className="w-5 h-5" />
           </Link>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-display">
-            Painel de Gestão & Compras 🥩📊
-          </h1>
-          <p className="text-zinc-400 text-xs sm:text-sm">
-            Aniversário Gustavo 36 & Michele 34 • 06/09/2026 às 13h30
-          </p>
+          <div>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+              Aniversário Gustavo 36 & Michele 34
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-display">
+              Painel de Gestão & Compras 🥩
+            </h1>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={loadDashboard}
             disabled={loading}
-            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 text-xs font-medium flex items-center gap-1.5 transition-all"
-            title="Atualizar dados"
+            className="flex items-center gap-2 py-2 px-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-zinc-200 transition-all"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Atualizar</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Atualizar</span>
           </button>
 
           <button
-            onClick={exportCsv}
-            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 text-xs font-medium flex items-center gap-1.5 transition-all"
-            title="Exportar CSV"
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 py-2 px-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-zinc-200 transition-all"
           >
-            <Download className="w-4 h-4 text-white" />
-            <span className="hidden sm:inline">Exportar CSV</span>
+            <Download className="w-3.5 h-3.5" />
+            <span>Exportar Excel</span>
           </button>
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="py-2.5 px-4 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-extrabold flex items-center gap-1.5 shadow-glow-white transition-all"
+            className="flex items-center gap-2 py-2 px-4 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition-all shadow-glow-white"
           >
             <Plus className="w-4 h-4" />
             <span>Adicionar Convidado</span>
@@ -308,42 +359,43 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
-        {/* Total Confirmados */}
-        <div className="glass-panel rounded-2xl p-4 sm:p-5 border border-emerald-500/30">
-          <div className="flex items-center justify-between text-xs text-zinc-400 mb-1">
-            <span>Total Confirmados</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+      {/* METRICS CARDS */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* Confirmados */}
+        <div className="glass-panel-glow rounded-2xl p-4 sm:p-5 border border-emerald-500/30">
+          <div className="flex items-center justify-between text-xs text-emerald-400 mb-1">
+            <span className="font-bold uppercase tracking-wider">Confirmados</span>
+            <CheckCircle2 className="w-4 h-4" />
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-white font-display">
             {data?.stats?.totalPessoasConfirmadas || 0}
             <span className="text-xs font-normal text-zinc-400 ml-2">pessoas</span>
           </div>
-          <div className="text-[11px] text-emerald-300 mt-1 flex items-center gap-2">
-            <span>{data?.stats?.totalAdultos || 0} adultos</span>
-            {data?.stats?.totalCriancas > 0 && <span>• {data?.stats?.totalCriancas} crianças</span>}
+          <div className="text-[11px] text-zinc-400 mt-1 flex items-center gap-2">
+            <span>👤 {data?.stats?.totalAdultos || 0} adultos</span>
+            <span>•</span>
+            <span>👶 {data?.stats?.totalCriancas || 0} crianças</span>
           </div>
         </div>
 
         {/* Pendentes */}
-        <div className="glass-panel rounded-2xl p-4 sm:p-5 border border-white/15">
+        <div className="glass-panel rounded-2xl p-4 sm:p-5 border border-white/20">
           <div className="flex items-center justify-between text-xs text-zinc-400 mb-1">
-            <span>Ainda Pendentes</span>
-            <Clock className="w-4 h-4 text-zinc-300" />
+            <span className="font-bold uppercase tracking-wider">Pendentes</span>
+            <Clock className="w-4 h-4 text-white" />
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-white font-display">
             {data?.stats?.pendentesCount || 0}
-            <span className="text-xs font-normal text-zinc-400 ml-2">convites</span>
+            <span className="text-xs font-normal text-zinc-400 ml-2">aguardando</span>
           </div>
-          <div className="text-[11px] text-zinc-400 mt-1">Aguardando resposta</div>
+          <div className="text-[11px] text-zinc-400 mt-1">Ainda não responderam</div>
         </div>
 
         {/* Recusados */}
-        <div className="glass-panel rounded-2xl p-4 sm:p-5 border border-rose-500/30">
-          <div className="flex items-center justify-between text-xs text-zinc-400 mb-1">
-            <span>Não Comparecerão</span>
-            <XCircle className="w-4 h-4 text-rose-400" />
+        <div className="glass-panel rounded-2xl p-4 sm:p-5 border border-rose-500/20">
+          <div className="flex items-center justify-between text-xs text-rose-400 mb-1">
+            <span className="font-bold uppercase tracking-wider">Não Irão</span>
+            <XCircle className="w-4 h-4" />
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-white font-display">
             {data?.stats?.recusadosCount || 0}
@@ -355,7 +407,7 @@ export default function AdminPage() {
         {/* Total da Lista */}
         <div className="glass-panel rounded-2xl p-4 sm:p-5 border border-white/20">
           <div className="flex items-center justify-between text-xs text-zinc-400 mb-1">
-            <span>Lista Total</span>
+            <span className="font-bold uppercase tracking-wider">Lista Total</span>
             <Users className="w-4 h-4 text-white" />
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-white font-display">
@@ -363,7 +415,7 @@ export default function AdminPage() {
             <span className="text-xs font-normal text-zinc-400 ml-2">convidados</span>
           </div>
           <div className="text-[11px] text-zinc-300 mt-1">
-            {data?.stats?.taxaConfirmacao || 0}% de adesão atual
+            {data?.stats?.taxaConfirmacao || 0}% de adesão confirmada
           </div>
         </div>
       </div>
@@ -378,7 +430,7 @@ export default function AdminPage() {
                 <span>Calculadora Inteligente de Compras para Churrasco</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-bold text-white font-display">
-                Estimativa Exata de Comida e Itens
+                Estimativa Dinâmica de Comida e Itens
               </h2>
             </div>
 
@@ -438,7 +490,7 @@ export default function AdminPage() {
                 </div>
               </div>
               <div className="mt-4 pt-3 border-t border-white/10 text-[11px] text-zinc-400 italic">
-                * Cálculo padrão: 400g/adulto e 200g/criança
+                * Cálculo dinâmico: 400g/adulto e 200g/criança
               </div>
             </div>
 
@@ -477,7 +529,7 @@ export default function AdminPage() {
                 </div>
               </div>
               <div className="mt-4 pt-3 border-t border-white/10 text-[11px] text-zinc-400 italic">
-                * Quantidades equilibradas para o evento
+                * Quantidades equilibradas automaticamente
               </div>
             </div>
 
@@ -506,45 +558,39 @@ export default function AdminPage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span>• Gelo (refrigerar coolers):</span>
-                    <span className="font-bold text-white">
-                      {activeCalc?.geloSacos || 0} sacos (5kg)
-                    </span>
+                    <span>• Gelo (sacos 5kg):</span>
+                    <span className="font-bold text-white">{activeCalc?.geloSacos || 0} sacos</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>• Pratos / Copos / Talheres:</span>
                     <span className="font-bold text-white">
-                      {activeCalc?.pratosDescartaveis || 0} pratos • {activeCalc?.coposDescartaveis || 0}{' '}
-                      copos
+                      {activeCalc?.pratosDescartaveis || 0} un.
                     </span>
                   </div>
                 </div>
               </div>
               <div className="mt-4 pt-3 border-t border-white/10 text-[11px] text-zinc-400 italic">
-                * Lembrete: Bebidas alcoólicas são trazidas pelos convidados
+                * Convidados trazem a própria bebida alcoólica
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* GUEST LIST MANAGEMENT TABLE */}
-      <section className="glass-panel rounded-3xl p-6 sm:p-8 border border-white/10 mb-10">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+      {/* GUEST LIST TABLE */}
+      <section className="glass-panel rounded-3xl p-6 sm:p-8 border border-white/10">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2 font-display">
-              <Users className="w-5 h-5 text-white" />
-              <span>Lista de Convidados ({filteredList.length})</span>
-            </h2>
-            <p className="text-xs text-zinc-400">
-              Mantendo todas as 57 entradas originais individualmente
+            <h2 className="text-xl font-bold text-white font-display">Lista Completa de Convidados</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Clique no botão de tipo para alternar instantaneamente entre <strong>Adulto 👤</strong> e <strong>Criança 👶</strong>.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {/* Search */}
-            <div className="relative min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            {/* Search Input */}
+            <div className="relative min-w-[220px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
               <input
                 type="text"
                 placeholder="Filtrar por nome..."
@@ -605,88 +651,107 @@ export default function AdminPage() {
               <tr>
                 <th className="py-3.5 px-4">#</th>
                 <th className="py-3.5 px-4">Nome do Convidado</th>
+                <th className="py-3.5 px-4">Tipo (Clique para alternar)</th>
                 <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Adultos</th>
-                <th className="py-3.5 px-4">Crianças</th>
-                <th className="py-3.5 px-4">Acompanhantes</th>
-                <th className="py-3.5 px-4">Contato / Mensagem</th>
+                <th className="py-3.5 px-4">Confirmado em</th>
                 <th className="py-3.5 px-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {filteredList.length > 0 ? (
-                filteredList.map((c) => (
-                  <tr key={c.id} className="hover:bg-white/5 transition-colors">
-                    <td className="py-3 px-4 font-mono text-zinc-500">#{c.list_index}</td>
-                    <td className="py-3 px-4 font-bold text-white">{c.nome}</td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
-                          c.status === 'confirmado'
-                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                            : c.status === 'recusado'
-                            ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                            : 'bg-white/5 text-zinc-300 border-white/15'
-                        }`}
-                      >
-                        {c.status === 'confirmado' && <CheckCircle2 className="w-3 h-3" />}
-                        {c.status === 'recusado' && <XCircle className="w-3 h-3" />}
-                        {c.status === 'pendente' && <Clock className="w-3 h-3" />}
-                        <span className="capitalize">{c.status}</span>
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-medium text-white">
-                      {c.status === 'confirmado' ? c.adultos_qtd : '-'}
-                    </td>
-                    <td className="py-3 px-4 font-medium text-white">
-                      {c.status === 'confirmado' ? c.criancas_qtd : '-'}
-                    </td>
-                    <td className="py-3 px-4 max-w-xs truncate text-zinc-400">
-                      {c.acompanhantes_nomes || '-'}
-                    </td>
-                    <td className="py-3 px-4 max-w-xs">
-                      {c.telefone && (
-                        <div className="text-[11px] text-zinc-300 font-mono">{c.telefone}</div>
-                      )}
-                      {c.mensagem && (
-                        <div className="text-[11px] text-zinc-200 italic truncate" title={c.mensagem}>
-                          "{c.mensagem}"
-                        </div>
-                      )}
-                      {c.restricao_alimentar && (
-                        <div className="text-[10px] text-zinc-400">
-                          ⚠️ {c.restricao_alimentar}
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {c.status === 'pendente' && (
-                          <a
-                            href={generateWhatsAppReminder(c)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all flex items-center gap-1 text-[11px]"
-                            title="Cobrar via WhatsApp"
-                          >
-                            <Send className="w-3 h-3" />
-                            <span className="hidden sm:inline">Cobrar</span>
-                          </a>
-                        )}
+                filteredList.map((c) => {
+                  const isCrianca = c.criancas_qtd > 0 && c.adultos_qtd === 0;
+                  const isToggling = togglingId === c.id;
+
+                  return (
+                    <tr key={c.id} className="hover:bg-white/5 transition-colors">
+                      <td className="py-3 px-4 font-mono text-zinc-500">#{c.list_index}</td>
+                      <td className="py-3 px-4 font-bold text-white text-sm">{c.nome}</td>
+                      
+                      {/* Interactive Type Toggle Column */}
+                      <td className="py-3 px-4">
                         <button
-                          onClick={() => handleDeleteGuest(c.id, c.nome)}
-                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all"
-                          title="Remover convidado"
+                          type="button"
+                          onClick={() => handleToggleGuestType(c)}
+                          disabled={isToggling}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold border transition-all cursor-pointer hover:scale-105 active:scale-95 ${
+                            isCrianca
+                              ? 'bg-sky-500/15 text-sky-300 border-sky-500/40 hover:bg-sky-500/25'
+                              : 'bg-zinc-800 text-zinc-200 border-zinc-600 hover:bg-zinc-700'
+                          }`}
+                          title="Clique para alternar entre Adulto e Criança"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          {isToggling ? (
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                          ) : isCrianca ? (
+                            <Baby className="w-3.5 h-3.5 text-sky-400" />
+                          ) : (
+                            <User className="w-3.5 h-3.5 text-zinc-300" />
+                          )}
+                          <span>{isCrianca ? 'Criança (200g)' : 'Adulto (400g)'}</span>
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-3 px-4">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+                            c.status === 'confirmado'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                              : c.status === 'recusado'
+                              ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                              : 'bg-white/5 text-zinc-300 border-white/15'
+                          }`}
+                        >
+                          {c.status === 'confirmado' && <CheckCircle2 className="w-3 h-3" />}
+                          {c.status === 'recusado' && <XCircle className="w-3 h-3" />}
+                          {c.status === 'pendente' && <Clock className="w-3 h-3" />}
+                          <span className="capitalize">{c.status}</span>
+                        </span>
+                      </td>
+
+                      {/* Confirmado em */}
+                      <td className="py-3 px-4 text-zinc-400 text-[11px]">
+                        {c.confirmado_em
+                          ? new Date(c.confirmado_em).toLocaleString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          : '—'}
+                      </td>
+
+                      {/* Ações */}
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {c.status === 'pendente' && (
+                            <a
+                              href={generateWhatsAppReminder(c)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all flex items-center gap-1 text-[11px]"
+                              title="Cobrar via WhatsApp"
+                            >
+                              <Send className="w-3 h-3" />
+                              <span className="hidden sm:inline">Cobrar</span>
+                            </a>
+                          )}
+                          <button
+                            onClick={() => handleDeleteGuest(c.id, c.nome)}
+                            className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all"
+                            title="Remover convidado"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-zinc-400 text-xs">
+                  <td colSpan={6} className="py-8 text-center text-zinc-400 text-xs">
                     Nenhum convidado encontrado com os filtros atuais.
                   </td>
                 </tr>
@@ -696,128 +761,84 @@ export default function AdminPage() {
         </div>
       </section>
 
-      {/* MESSAGES WALL */}
-      {data?.mensagens && data.mensagens.length > 0 && (
-        <section className="glass-panel rounded-3xl p-6 sm:p-8 border border-white/10">
-          <div className="flex items-center gap-2 text-white font-bold text-base mb-4 font-display">
-            <MessageSquare className="w-5 h-5 text-zinc-300" />
-            <span>Mural de Recados & Felicitações ({data.mensagens.length})</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {data.mensagens.map((m) => (
-              <div
-                key={m.id}
-                className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col justify-between"
-              >
-                <p className="text-zinc-200 text-xs sm:text-sm italic leading-relaxed mb-3">
-                  "{m.mensagem}"
-                </p>
-                <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px]">
-                  <span className="font-bold text-white">{m.nome}</span>
-                  <span className="text-zinc-500">
-                    {m.confirmado_em
-                      ? new Date(m.confirmado_em).toLocaleDateString('pt-BR')
-                      : ''}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Modal: Adicionar Convidado */}
+      {/* ADD GUEST MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-md w-full glass-panel-glow rounded-3xl p-6 border border-white/30 animate-slide-up">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white font-display">
-                Adicionar Convidado Extra
-              </h3>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="text-zinc-400 hover:text-white text-xs"
-              >
-                ✕ Fechar
-              </button>
-            </div>
+          <div className="w-full max-w-md bg-[#0e1017] border border-white/20 rounded-3xl p-6 shadow-2xl animate-fade-in">
+            <h3 className="text-lg font-bold text-white mb-1 font-display">Adicionar Convidado</h3>
+            <p className="text-xs text-zinc-400 mb-5">
+              Insira o nome para gerar o convite e incluí-lo na lista.
+            </p>
 
             <form onSubmit={handleAddGuest} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-zinc-300 mb-1">
-                  Nome Completo *
+                  Nome do Convidado *
                 </label>
                 <input
                   type="text"
-                  required
-                  placeholder="Ex: João da Silva"
+                  placeholder="Ex: Carlos Ferreira"
                   value={newNome}
                   onChange={(e) => setNewNome(e.target.value)}
-                  className="w-full glass-input px-3.5 py-2.5 rounded-xl text-sm text-white placeholder-zinc-500"
+                  className="w-full glass-input px-3.5 py-2.5 rounded-xl text-white placeholder-zinc-500 text-sm"
+                  autoFocus
+                  required
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-300 mb-1">
-                    Qtd Adultos
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={newAdultos}
-                    onChange={(e) => setNewAdultos(parseInt(e.target.value, 10) || 1)}
-                    className="w-full glass-input px-3.5 py-2 rounded-xl text-sm text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-300 mb-1">
-                    Qtd Crianças
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={newCriancas}
-                    onChange={(e) => setNewCriancas(parseInt(e.target.value, 10) || 0)}
-                    className="w-full glass-input px-3.5 py-2 rounded-xl text-sm text-white"
-                  />
-                </div>
-              </div>
-
+              {/* Type toggle */}
               <div>
                 <label className="block text-xs font-semibold text-zinc-300 mb-1">
-                  WhatsApp (opcional)
+                  Tipo de Convidado (para cálculo do churrasco)
                 </label>
-                <input
-                  type="tel"
-                  placeholder="(11) 99999-9999"
-                  value={newTelefone}
-                  onChange={(e) => setNewTelefone(e.target.value)}
-                  className="w-full glass-input px-3.5 py-2.5 rounded-xl text-sm text-white placeholder-zinc-500"
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewIsCrianca(false)}
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                      !newIsCrianca
+                        ? 'bg-white text-black border-white shadow'
+                        : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
+                    }`}
+                  >
+                    <User className="w-3.5 h-3.5" />
+                    <span>Adulto (400g)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewIsCrianca(true)}
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                      newIsCrianca
+                        ? 'bg-sky-500 text-white border-sky-400 shadow'
+                        : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
+                    }`}
+                  >
+                    <Baby className="w-3.5 h-3.5" />
+                    <span>Criança (200g)</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-zinc-300 text-xs font-medium"
+                  className="py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-zinc-300 text-xs font-medium"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isAdding}
-                  className="flex-1 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-extrabold shadow-glow-white"
+                  className="py-2.5 px-5 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-xs shadow-glow-white disabled:opacity-50"
                 >
-                  {isAdding ? 'Salvando...' : 'Adicionar'}
+                  {isAdding ? 'Adicionando...' : 'Adicionar Convidado'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }
