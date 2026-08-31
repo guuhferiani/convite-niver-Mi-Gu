@@ -359,22 +359,14 @@ export default function HomePage() {
           abaixo para organizarmos a comida e tudo mais.
         </p>
 
-        {/* Countdown Cards (Fixed math) */}
-        <div className="grid grid-cols-4 gap-2.5 sm:gap-4 max-w-md mx-auto mb-6">
+        {/* Countdown Cards (Dias, Min, Seg) */}
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-4 max-w-sm mx-auto mb-6">
           <div className="bg-dark-900/90 border border-white/15 rounded-2xl p-3 sm:p-4 text-center">
             <span className="block text-2xl sm:text-4xl font-black text-white font-display">
               {timeLeft.days}
             </span>
             <span className="text-[10px] sm:text-xs uppercase font-semibold tracking-wider text-zinc-400 mt-1 block">
               Dias
-            </span>
-          </div>
-          <div className="bg-dark-900/90 border border-white/15 rounded-2xl p-3 sm:p-4 text-center">
-            <span className="block text-2xl sm:text-4xl font-black text-white font-display">
-              {String(timeLeft.hours).padStart(2, '0')}
-            </span>
-            <span className="text-[10px] sm:text-xs uppercase font-semibold tracking-wider text-zinc-400 mt-1 block">
-              Horas
             </span>
           </div>
           <div className="bg-dark-900/90 border border-white/15 rounded-2xl p-3 sm:p-4 text-center">
@@ -395,7 +387,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Clean Date Badge */}
+        {/* Clean Date & Time Badge */}
         <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs sm:text-sm text-zinc-200 font-semibold shadow-sm">
           <Calendar className="w-4 h-4 text-white" />
           <span>Domingo, 06/09/2026 às 13h30</span>
