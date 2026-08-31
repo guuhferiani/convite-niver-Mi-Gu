@@ -325,12 +325,13 @@ export default function HomePage() {
         </div>
 
         {/* Headings */}
-        <h2 className="text-xs uppercase tracking-widest font-bold text-zinc-400 mb-2">
+        <h2 className="text-xs uppercase tracking-widest font-bold text-zinc-400 mb-3">
           BORA COMEMORAR! NOSSO ANIVERSÁRIO TÁ CHEGANDO!
         </h2>
-        <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight mb-3 font-display">
-          Gustavo <span className="platinum-gradient-text">36</span> & Michele{' '}
-          <span className="platinum-gradient-text">34</span>
+        <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight mb-4 font-display flex flex-col items-center justify-center gap-1 sm:gap-2">
+          <span>Gustavo <span className="platinum-gradient-text">36</span></span>
+          <span className="text-zinc-500 font-light text-xl sm:text-2xl leading-none">&</span>
+          <span>Michele <span className="platinum-gradient-text">34</span></span>
         </h1>
         <p className="text-zinc-300 text-sm sm:text-base max-w-xl mx-auto leading-relaxed mb-8">
           Preparamos esse momento com muito carinho para comemorar juntos! Confirme sua presença
