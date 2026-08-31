@@ -387,10 +387,16 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Clean Date & Time Badge */}
-        <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs sm:text-sm text-zinc-200 font-semibold shadow-sm">
-          <Calendar className="w-4 h-4 text-white" />
-          <span>Domingo, 06/09/2026 às 13h30</span>
+        {/* Date & Time Badges */}
+        <div className="flex flex-wrap items-center justify-center gap-3 text-xs sm:text-sm text-zinc-200">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 shadow-sm font-medium">
+            <Calendar className="w-4 h-4 text-white" />
+            <span>Domingo, 06/09/2026</span>
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 shadow-sm font-medium">
+            <Clock className="w-4 h-4 text-white" />
+            <span>A partir das 13h30</span>
+          </div>
         </div>
       </section>
 
