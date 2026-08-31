@@ -394,18 +394,10 @@ export default function HomePage() {
             </div>
 
             {/* Quick Details Badges */}
-            <div className="flex flex-wrap items-center justify-center gap-3 text-xs sm:text-sm text-zinc-200">
-              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
+            <div className="flex items-center justify-center text-xs sm:text-sm text-zinc-200">
+              <div className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 shadow-sm">
                 <Calendar className="w-4 h-4 text-white" />
-                <span className="font-medium">Domingo, 06/09/2026</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
-                <Clock className="w-4 h-4 text-white" />
-                <span className="font-medium">A partir das 13h30</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
-                <MapPin className="w-4 h-4 text-white" />
-                <span className="font-medium">Salão de Festas • Belenzinho</span>
+                <span className="font-semibold">Domingo, 06/09/2026</span>
               </div>
             </div>
           </section>
