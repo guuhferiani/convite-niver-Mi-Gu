@@ -12,8 +12,6 @@ import {
   CheckCircle2,
   XCircle,
   Search,
-  Users,
-  Baby,
   Sparkles,
   ExternalLink,
   UserCheck,
@@ -23,8 +21,7 @@ import {
   PartyPopper,
   ArrowRight,
   HelpCircle,
-  X,
-  Navigation
+  X
 } from 'lucide-react';
 
 const EVENT_DATE = new Date('2026-09-06T13:30:00-03:00');
@@ -45,12 +42,6 @@ export default function HomePage() {
 
   // Form state
   const [statusChoice, setStatusChoice] = useState('confirmado'); // 'confirmado' | 'recusado'
-  const [adultosQtd, setAdultosQtd] = useState(1);
-  const [criancasQtd, setCriancasQtd] = useState(0);
-  const [acompanhantesNomes, setAcompanhantesNomes] = useState('');
-  const [telefone, setTelefone] = useState('');
-  const [mensagem, setMensagem] = useState('');
-  const [restricaoAlimentar, setRestricaoAlimentar] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedData, setSubmittedData] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
@@ -58,7 +49,6 @@ export default function HomePage() {
   // Countdown state
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
-    hours: 0,
     minutes: 0,
     seconds: 0,
     isExpired: false
@@ -84,25 +74,23 @@ export default function HomePage() {
     loadConvidados();
   }, []);
 
-  // Countdown timer logic (Correct math: days, hours 0-23, min 0-59, sec 0-59)
+  // Countdown timer logic (Days, Minutes, Seconds)
   useEffect(() => {
     const calculateTime = () => {
       const now = new Date().getTime();
       const distance = EVENT_DATE.getTime() - now;
 
       if (distance < 0) {
-        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true });
+        setTimeLeft({ days: 0, minutes: 0, seconds: 0, isExpired: true });
         return;
       }
 
       const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
       setTimeLeft({
         days,
-        hours,
         minutes,
         seconds,
         isExpired: false
@@ -130,10 +118,8 @@ export default function HomePage() {
 
     return convidados.filter((c) => {
       const nomeNorm = normalizeText(c.nome);
-      // Matches substring anywhere in name
       if (nomeNorm.includes(term)) return true;
 
-      // Matches initials (e.g. "gf" for Gustavo Feriani)
       const initials = nomeNorm
         .split(' ')
         .map((part) => part[0])
@@ -150,15 +136,7 @@ export default function HomePage() {
     setSearchTerm('');
     setIsDropdownOpen(false);
     setErrorMsg('');
-
-    // Pre-fill if already filled before
     setStatusChoice(convidado.status === 'recusado' ? 'recusado' : 'confirmado');
-    setAdultosQtd(convidado.adultos_qtd || 1);
-    setCriancasQtd(convidado.criancas_qtd || 0);
-    setAcompanhantesNomes(convidado.acompanhantes_nomes || '');
-    setTelefone(convidado.telefone || '');
-    setMensagem(convidado.mensagem || '');
-    setRestricaoAlimentar(convidado.restricao_alimentar || '');
   };
 
   // Confetti trigger in silver & white
@@ -192,7 +170,7 @@ export default function HomePage() {
     }
   };
 
-  // Submit RSVP
+  // Submit RSVP (Individual)
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedConvidado) {
@@ -207,12 +185,12 @@ export default function HomePage() {
       const payload = {
         id: selectedConvidado.id,
         status: statusChoice,
-        adultos_qtd: statusChoice === 'confirmado' ? adultosQtd : 0,
-        criancas_qtd: statusChoice === 'confirmado' ? criancasQtd : 0,
-        acompanhantes_nomes: statusChoice === 'confirmado' ? acompanhantesNomes : '',
-        telefone,
-        mensagem,
-        restricao_alimentar: statusChoice === 'confirmado' ? restricaoAlimentar : ''
+        adultos_qtd: statusChoice === 'confirmado' ? 1 : 0,
+        criancas_qtd: 0,
+        acompanhantes_nomes: '',
+        telefone: '',
+        mensagem: '',
+        restricao_alimentar: ''
       };
 
       const res = await fetch('/api/convidados', {
@@ -389,11 +367,11 @@ export default function HomePage() {
 
         {/* Date & Time Badges */}
         <div className="flex flex-wrap items-center justify-center gap-3 text-xs sm:text-sm text-zinc-200">
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 shadow-sm font-medium">
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 shadow-sm font-medium">
             <Calendar className="w-4 h-4 text-white" />
             <span>Domingo, 06/09/2026</span>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 shadow-sm font-medium">
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 shadow-sm font-medium">
             <Clock className="w-4 h-4 text-white" />
             <span>A partir das 13h30</span>
           </div>
@@ -480,7 +458,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 3. MAIN RSVP CONFIRMATION CARD (CENTERED & PROMINENT) */}
+      {/* 3. MAIN RSVP CONFIRMATION CARD (CENTERED & STREAMLINED) */}
       <section id="rsvp-section" className="relative scroll-mt-6 mb-12">
         <div className="glass-panel-glow rounded-3xl p-6 sm:p-10 border border-white/20 shadow-glow-subtle max-w-2xl mx-auto">
           <div className="text-center mb-8">
@@ -526,29 +504,6 @@ export default function HomePage() {
                   </>
                 )}
               </p>
-
-              {submittedData.status === 'confirmado' && (
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6 text-left text-xs sm:text-sm space-y-2">
-                  <div className="flex justify-between text-zinc-300">
-                    <span>Adultos confirmados:</span>
-                    <span className="font-semibold text-white">{submittedData.adultos_qtd}</span>
-                  </div>
-                  {submittedData.criancas_qtd > 0 && (
-                    <div className="flex justify-between text-zinc-300">
-                      <span>Crianças:</span>
-                      <span className="font-semibold text-white">{submittedData.criancas_qtd}</span>
-                    </div>
-                  )}
-                  {submittedData.acompanhantes_nomes && (
-                    <div className="flex justify-between text-zinc-300">
-                      <span>Acompanhantes:</span>
-                      <span className="font-semibold text-white">
-                        {submittedData.acompanhantes_nomes}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
 
               <div className="flex flex-col gap-3">
                 {submittedData.status === 'confirmado' && (
@@ -660,37 +615,37 @@ export default function HomePage() {
                             <span>Buscando no banco de dados...</span>
                           </div>
                         ) : filteredConvidados.length > 0 ? (
-                              filteredConvidados.map((c) => (
-                                <button
-                                  key={c.id}
-                                  type="button"
-                                  onClick={() => handleSelectConvidado(c)}
-                                  className="w-full p-4 text-left bg-[#0e1017] hover:bg-zinc-800/90 flex items-center justify-between transition-colors group cursor-pointer"
-                                >
-                                  <div className="text-sm font-semibold text-zinc-200 group-hover:text-white">
-                                    {renderHighlightedName(c.nome, searchTerm)}
-                                  </div>
+                          filteredConvidados.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => handleSelectConvidado(c)}
+                              className="w-full p-4 text-left bg-[#0e1017] hover:bg-zinc-800/90 flex items-center justify-between transition-colors group cursor-pointer"
+                            >
+                              <div className="text-sm font-semibold text-zinc-200 group-hover:text-white">
+                                {renderHighlightedName(c.nome, searchTerm)}
+                              </div>
 
-                                  <div className="flex items-center gap-2">
-                                    <span
-                                      className={`text-[11px] px-2.5 py-0.5 rounded-full border font-medium ${
-                                        c.status === 'confirmado'
-                                          ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-                                          : c.status === 'recusado'
-                                          ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
-                                          : 'bg-white/5 text-zinc-400 border-white/10'
-                                      }`}
-                                    >
-                                      {c.status === 'confirmado'
-                                        ? 'Confirmado'
-                                        : c.status === 'recusado'
-                                        ? 'Não irá'
-                                        : 'Pendente'}
-                                    </span>
-                                    <ArrowRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-1 transition-all" />
-                                  </div>
-                                </button>
-                              ))
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`text-[11px] px-2.5 py-0.5 rounded-full border font-medium ${
+                                    c.status === 'confirmado'
+                                      ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                                      : c.status === 'recusado'
+                                      ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+                                      : 'bg-white/5 text-zinc-400 border-white/10'
+                                  }`}
+                                >
+                                  {c.status === 'confirmado'
+                                    ? 'Confirmado'
+                                    : c.status === 'recusado'
+                                    ? 'Não irá'
+                                    : 'Pendente'}
+                                </span>
+                                <ArrowRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                              </div>
+                            </button>
+                          ))
                         ) : (
                           <div className="p-5 text-center text-xs text-zinc-400 bg-[#0e1017]">
                             <p className="font-semibold text-zinc-300 mb-1">
@@ -714,7 +669,7 @@ export default function HomePage() {
                 )}
               </div>
 
-              {/* STEP 2 & 3: SHOWN ONLY AFTER GUEST IS SELECTED */}
+              {/* STEP 2: SHOWN ONLY AFTER GUEST IS SELECTED */}
               {selectedConvidado && (
                 <div className="animate-slide-up space-y-6 pt-3 border-t border-white/10">
                   {/* Step 2: Attendance Toggle */}
@@ -757,132 +712,6 @@ export default function HomePage() {
                         <span className="text-xs sm:text-sm font-bold">Não poderei ir 😢</span>
                       </button>
                     </div>
-                  </div>
-
-                  {/* Step 3: Details if Confirmed */}
-                  {statusChoice === 'confirmado' && (
-                    <div className="space-y-4 pt-3 border-t border-white/10 animate-fade-in">
-                      {/* Adults and Kids Counter */}
-                      <div className="grid grid-cols-2 gap-3">
-                        {/* Adults */}
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-                          <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 mb-2">
-                            <Users className="w-4 h-4 text-white" />
-                            <span>Adultos</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] text-zinc-400">Total</span>
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setAdultosQtd((prev) => Math.max(1, prev - 1))}
-                                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold flex items-center justify-center text-base"
-                              >
-                                -
-                              </button>
-                              <span className="font-black text-base text-white w-6 text-center">
-                                {adultosQtd}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setAdultosQtd((prev) => prev + 1)}
-                                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold flex items-center justify-center text-base"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Children */}
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-                          <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 mb-2">
-                            <Baby className="w-4 h-4 text-zinc-300" />
-                            <span>Crianças</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] text-zinc-400">Até 11 anos</span>
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setCriancasQtd((prev) => Math.max(0, prev - 1))}
-                                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold flex items-center justify-center text-base"
-                              >
-                                -
-                              </button>
-                              <span className="font-black text-base text-white w-6 text-center">
-                                {criancasQtd}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setCriancasQtd((prev) => prev + 1)}
-                                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold flex items-center justify-center text-base"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Companion Names */}
-                      {(adultosQtd > 1 || criancasQtd > 0) && (
-                        <div className="animate-fade-in">
-                          <label className="block text-xs font-semibold text-zinc-300 mb-1">
-                            Nome dos acompanhantes (opcional)
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Ex: Esposa(o), namorada(o), filhos..."
-                            value={acompanhantesNomes}
-                            onChange={(e) => setAcompanhantesNomes(e.target.value)}
-                            className="w-full glass-input px-4 py-2.5 rounded-xl text-white placeholder-zinc-500 text-sm"
-                          />
-                        </div>
-                      )}
-
-                      {/* Dietary Restrictions */}
-                      <div>
-                        <label className="block text-xs font-semibold text-zinc-300 mb-1">
-                          Restrição alimentar ou observação (opcional)
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Ex: Vegetariano, celíaco, intolerância, etc."
-                          value={restricaoAlimentar}
-                          onChange={(e) => setRestricaoAlimentar(e.target.value)}
-                          className="w-full glass-input px-4 py-2.5 rounded-xl text-white placeholder-zinc-500 text-sm"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* WhatsApp */}
-                  <div>
-                    <label className="block text-xs font-semibold text-zinc-300 mb-1">
-                      WhatsApp para contato (opcional)
-                    </label>
-                    <input
-                      type="tel"
-                      placeholder="(11) 99999-9999"
-                      value={telefone}
-                      onChange={(e) => setTelefone(e.target.value)}
-                      className="w-full glass-input px-4 py-2.5 rounded-xl text-white placeholder-zinc-500 text-sm"
-                    />
-                  </div>
-
-                  {/* Loving Message */}
-                  <div>
-                    <label className="block text-xs font-semibold text-zinc-300 mb-1">
-                      Recado para o Gustavo e a Michele (opcional)
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder="Mande um recado de parabéns ou carinho..."
-                      value={mensagem}
-                      onChange={(e) => setMensagem(e.target.value)}
-                      className="w-full glass-input px-4 py-2.5 rounded-xl text-white placeholder-zinc-500 text-sm resize-none"
-                    />
                   </div>
 
                   {/* Error display */}
