@@ -11,17 +11,15 @@ import {
   Search,
   Plus,
   Trash2,
-  MessageSquare,
   Lock,
-  Download,
+  FileText,
   Send,
   ArrowLeft,
   RefreshCw,
   ShoppingBag,
   Utensils,
   Baby,
-  User,
-  Sparkles
+  User
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -129,7 +127,6 @@ export default function AdminPage() {
         alert(json.error || 'Erro ao alterar tipo do convidado');
         await loadDashboard();
       } else {
-        // Reload dashboard to refresh accurate BBQ metrics
         await loadDashboard();
       }
     } catch (err) {
@@ -198,33 +195,172 @@ export default function AdminPage() {
     }
   };
 
-  // Export CSV
-  const handleExportCSV = () => {
+  // Export PDF Report function
+  const handleExportPDF = () => {
     if (!data || !data.convidados) return;
 
-    const headers = ['#', 'Nome', 'Tipo', 'Status', 'Confirmado Em', 'Telefone', 'Recado'];
-    const rows = data.convidados.map((c) => {
-      const tipo = c.criancas_qtd > 0 && c.adultos_qtd === 0 ? 'Criança' : 'Adulto';
-      return [
-        c.list_index,
-        `"${c.nome.replace(/"/g, '""')}"`,
-        tipo,
-        c.status,
-        c.confirmado_em ? new Date(c.confirmado_em).toLocaleString('pt-BR') : 'Pendente',
-        `"${c.telefone || ''}"`,
-        `"${(c.mensagem || '').replace(/"/g, '""')}"`
-      ];
-    });
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Por favor, permita pop-ups no navegador para gerar o PDF.');
+      return;
+    }
 
-    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `lista-aniversario-gustavo-michele-${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const calc = activeCalc || {};
+    const stats = data.stats || {};
+    const rows = data.convidados
+      .map((c) => {
+        const isCrianca = c.criancas_qtd > 0 && c.adultos_qtd === 0;
+        const tipoLabel = isCrianca ? 'Criança' : 'Adulto';
+        const statusClass =
+          c.status === 'confirmado'
+            ? 'color: #059669; font-weight: bold;'
+            : c.status === 'recusado'
+            ? 'color: #dc2626;'
+            : 'color: #6b7280;';
+        const statusText =
+          c.status === 'confirmado' ? 'Confirmado' : c.status === 'recusado' ? 'Não irá' : 'Pendente';
+        const dataConf = c.confirmado_em
+          ? new Date(c.confirmado_em).toLocaleString('pt-BR', {
+              day: '2-digit',
+              month: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+          : '—';
+
+        return `
+          <tr>
+            <td style="padding: 7px 10px; border-bottom: 1px solid #e5e7eb; font-family: monospace;">#${c.list_index}</td>
+            <td style="padding: 7px 10px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">${c.nome}</td>
+            <td style="padding: 7px 10px; border-bottom: 1px solid #e5e7eb;">${tipoLabel}</td>
+            <td style="padding: 7px 10px; border-bottom: 1px solid #e5e7eb; ${statusClass}">${statusText}</td>
+            <td style="padding: 7px 10px; border-bottom: 1px solid #e5e7eb; color: #6b7280; font-size: 11px;">${dataConf}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório de Convidados & Compras — Gustavo (36) & Michele (34)</title>
+        <style>
+          @page { size: A4; margin: 12mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #111827; margin: 0; padding: 15px; font-size: 12px; }
+          .header { border-bottom: 2px solid #111827; padding-bottom: 10px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end; }
+          .title { font-size: 18px; font-weight: 800; margin: 0; color: #000; }
+          .subtitle { font-size: 11px; color: #4b5563; margin-top: 3px; }
+          .badge-box { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+          .card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; }
+          .card-title { font-size: 9px; text-transform: uppercase; font-weight: 700; color: #6b7280; margin-bottom: 2px; }
+          .card-value { font-size: 16px; font-weight: 800; color: #111827; }
+          .card-sub { font-size: 10px; color: #6b7280; margin-top: 2px; }
+          .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+          .section-title { font-size: 13px; font-weight: 700; margin: 0 0 8px 0; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+          .list-item { display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; }
+          table { width: 100%; border-collapse: collapse; text-align: left; font-size: 11px; margin-top: 8px; }
+          th { background: #f3f4f6; padding: 7px 10px; font-size: 10px; text-transform: uppercase; font-weight: 700; color: #4b5563; border-bottom: 1px solid #d1d5db; }
+          .footer { margin-top: 24px; text-align: center; font-size: 10px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 8px; }
+          @media print {
+            body { padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1 class="title">🎉 Aniversário Gustavo (36) & Michele (34)</h1>
+            <div class="subtitle">Domingo, 06/09/2026 às 13h30 • Salão de Festas, Rua Cajuru 89, Belenzinho</div>
+          </div>
+          <div style="text-align: right; font-size: 10px; color: #6b7280;">
+            <div>Emissão: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}</div>
+            <div style="font-weight: bold; color: #111827;">Relatório Oficial de Gestão</div>
+          </div>
+        </div>
+
+        <div class="badge-box">
+          <div class="card" style="border-left: 3px solid #059669;">
+            <div class="card-title">Confirmados</div>
+            <div class="card-value">${stats.totalPessoasConfirmadas || 0} pessoas</div>
+            <div class="card-sub">${stats.totalAdultos || 0} adultos • ${stats.totalCriancas || 0} crianças</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Pendentes</div>
+            <div class="card-value">${stats.pendentesCount || 0}</div>
+            <div class="card-sub">Aguardando resposta</div>
+          </div>
+          <div class="card" style="border-left: 3px solid #dc2626;">
+            <div class="card-title">Não Irão</div>
+            <div class="card-value">${stats.recusadosCount || 0}</div>
+            <div class="card-sub">Avisaram</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Lista Total</div>
+            <div class="card-value">${stats.totalLista || 0} convidados</div>
+            <div class="card-sub">${stats.taxaConfirmacao || 0}% de adesão</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="section-title">🥩 Carnes & Churrasco (${useProjection ? 'Projeção com 80% Pendentes' : 'Apenas Confirmados'})</h3>
+            <div class="list-item" style="font-weight: bold; border-bottom: 1px dashed #d1d5db; padding-bottom: 4px; margin-bottom: 4px;">
+              <span>Total Geral de Carne:</span>
+              <span>${calc.carneTotalKg || 0} kg</span>
+            </div>
+            <div class="list-item"><span>• Bovina (Picanha / Alcatra / Fraldinha):</span><span>${calc.carneBovinaKg || 0} kg</span></div>
+            <div class="list-item"><span>• Linguiça toscana / artesanal:</span><span>${calc.linguicaKg || 0} kg</span></div>
+            <div class="list-item"><span>• Frango (coxinha / tulipa):</span><span>${calc.frangoKg || 0} kg</span></div>
+            <div class="list-item"><span>• Pão de Alho:</span><span>${calc.paoDeAlhoUnidades || 0} un.</span></div>
+            <div class="list-item"><span>• Queijo Coalho:</span><span>${calc.queijoCoalhoEspetos || 0} espetos</span></div>
+          </div>
+
+          <div class="card">
+            <h3 class="section-title">🛒 Bebidas, Insumos & Descartáveis</h3>
+            <div class="list-item"><span>• Refrigerantes / Sucos:</span><span>${calc.refrigeranteLitros || 0} L</span></div>
+            <div class="list-item"><span>• Água mineral:</span><span>${calc.aguaLitros || 0} L</span></div>
+            <div class="list-item"><span>• Carvão (sacos 10kg):</span><span>${calc.carvaoSacos || 0} sacos</span></div>
+            <div class="list-item"><span>• Gelo (sacos 5kg):</span><span>${calc.geloSacos || 0} sacos</span></div>
+            <div class="list-item"><span>• Arroz (cru):</span><span>${calc.arrozKg || 0} kg</span></div>
+            <div class="list-item"><span>• Farofa / Vinagrete:</span><span>${calc.farofaKg || 0} kg / ${calc.vinagreteKg || 0} kg</span></div>
+          </div>
+        </div>
+
+        <h3 class="section-title">📋 Lista de Convidados (${data.convidados.length})</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 35px;">#</th>
+              <th>Nome do Convidado</th>
+              <th style="width: 80px;">Tipo</th>
+              <th style="width: 100px;">Status</th>
+              <th style="width: 120px;">Confirmado em</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          Relatório gerado automaticamente pelo Sistema de Gestão de Convites • Aniversário Gustavo & Michele
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   // Generate WhatsApp reminder link
@@ -341,12 +477,14 @@ export default function AdminPage() {
             <span>Atualizar</span>
           </button>
 
+          {/* Export PDF Button */}
           <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 py-2 px-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-zinc-200 transition-all"
+            onClick={handleExportPDF}
+            className="flex items-center gap-2 py-2 px-3.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-semibold text-white transition-all"
+            title="Gerar e Imprimir Relatório em PDF"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>Exportar Excel</span>
+            <FileText className="w-3.5 h-3.5 text-zinc-300" />
+            <span>Exportar PDF</span>
           </button>
 
           <button
