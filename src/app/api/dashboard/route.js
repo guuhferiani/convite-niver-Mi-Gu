@@ -99,8 +99,10 @@ export async function GET() {
     convidados.forEach((c) => {
       if (c.status === 'confirmado') {
         confirmadosCount++;
-        totalAdultos += parseInt(c.adultos_qtd, 10) || 1;
-        totalCriancas += parseInt(c.criancas_qtd, 10) || 0;
+        const adultos = c.adultos_qtd !== null && c.adultos_qtd !== undefined ? parseInt(c.adultos_qtd, 10) : 1;
+        const criancas = c.criancas_qtd !== null && c.criancas_qtd !== undefined ? parseInt(c.criancas_qtd, 10) : 0;
+        totalAdultos += isNaN(adultos) ? 1 : adultos;
+        totalCriancas += isNaN(criancas) ? 0 : criancas;
       } else if (c.status === 'recusado') {
         recusadosCount++;
       } else {
