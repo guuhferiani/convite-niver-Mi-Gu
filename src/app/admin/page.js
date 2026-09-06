@@ -218,16 +218,10 @@ export default function AdminPage() {
     const stats = data.stats || {};
     const rows = confirmados
       .map((c, index) => {
-        const isCrianca = c.criancas_qtd > 0 && c.adultos_qtd === 0;
-        const tipoLabel = isCrianca ? 'Criança' : 'Adulto';
-
         return `
           <tr>
-            <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-weight: bold; text-align: center; width: 40px;">${index + 1}</td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-weight: 700; font-size: 13px;">${c.nome}</td>
-            <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; text-align: center; font-size: 11px;">${tipoLabel}</td>
-            <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; width: 140px; color: #9ca3af; font-size: 10px;">_____________________</td>
-            <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; width: 120px; color: #9ca3af; font-size: 10px;">[ &nbsp; ] Entrada: ___:___</td>
+            <td style="padding: 9px 12px; border-bottom: 1px solid #e5e7eb; font-weight: 700; text-align: center; width: 60px; color: #4b5563;">${index + 1}</td>
+            <td style="padding: 9px 16px; border-bottom: 1px solid #e5e7eb; font-weight: 600; font-size: 13px; color: #111827;">${c.nome}</td>
           </tr>
         `;
       })
@@ -241,7 +235,7 @@ export default function AdminPage() {
         <title>Lista de Acesso Portaria — Aniversário Gustavo & Michele</title>
         <style>
           @page { size: A4; margin: 12mm; }
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #111827; margin: 0; padding: 15px; font-size: 12px; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #111827; margin: 0; padding: 15px; font-size: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .header { border-bottom: 2px solid #111827; padding-bottom: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: flex-end; }
           .title { font-size: 18px; font-weight: 800; margin: 0; color: #000; }
           .subtitle { font-size: 11px; color: #4b5563; margin-top: 3px; }
@@ -249,7 +243,10 @@ export default function AdminPage() {
           .info-item { font-size: 11px; }
           .info-item strong { color: #000; font-size: 13px; }
           table { width: 100%; border-collapse: collapse; text-align: left; font-size: 11px; margin-top: 6px; }
-          th { background: #f3f4f6; padding: 8px 10px; font-size: 10px; text-transform: uppercase; font-weight: 800; color: #374151; border-bottom: 2px solid #9ca3af; }
+          thead { display: table-header-group; }
+          tr { page-break-inside: avoid; }
+          tbody tr:nth-child(even) { background-color: #f9fafb; }
+          th { background: #f3f4f6; padding: 10px 14px; font-size: 11px; text-transform: uppercase; font-weight: 800; color: #374151; border-bottom: 2px solid #9ca3af; }
           .footer { margin-top: 30px; display: flex; justify-content: space-between; font-size: 11px; color: #4b5563; border-top: 1px solid #d1d5db; padding-top: 15px; }
           @media print {
             body { padding: 0; }
@@ -283,11 +280,8 @@ export default function AdminPage() {
         <table>
           <thead>
             <tr>
-              <th style="text-align: center;">Nº</th>
+              <th style="text-align: center; width: 60px;">Nº</th>
               <th>Nome Completo do Convidado</th>
-              <th style="text-align: center;">Tipo</th>
-              <th>Documento (RG / CPF)</th>
-              <th>Controle de Entrada</th>
             </tr>
           </thead>
           <tbody>
