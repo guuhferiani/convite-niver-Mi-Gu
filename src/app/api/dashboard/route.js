@@ -28,11 +28,11 @@ export function calculateProvisions(adultos, criancas) {
     };
   }
 
-  // 400g por adulto, 200g por criança
+  // 400g por adulto, 200g por criança (sem aves: 70% bovina, 30% linguiça)
   const carneTotalKg = ((adultos * 0.40) + (criancas * 0.20)).toFixed(1);
-  const carneBovinaKg = (parseFloat(carneTotalKg) * 0.50).toFixed(1);
-  const linguicaKg = (parseFloat(carneTotalKg) * 0.25).toFixed(1);
-  const frangoKg = (parseFloat(carneTotalKg) * 0.25).toFixed(1);
+  const carneBovinaKg = (parseFloat(carneTotalKg) * 0.70).toFixed(1);
+  const linguicaKg = (parseFloat(carneTotalKg) * 0.30).toFixed(1);
+  const frangoKg = 0;
 
   const paoDeAlhoUnidades = Math.ceil(adultos * 2 + criancas * 1);
   const queijoCoalhoEspetos = Math.ceil(adultos * 1 + criancas * 0.5);

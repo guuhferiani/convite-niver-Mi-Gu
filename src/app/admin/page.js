@@ -419,7 +419,6 @@ export default function AdminPage() {
             </div>
             <div class="list-item"><span>• Bovina (Picanha / Alcatra / Fraldinha):</span><span>${calc.carneBovinaKg || 0} kg</span></div>
             <div class="list-item"><span>• Linguiça toscana / artesanal:</span><span>${calc.linguicaKg || 0} kg</span></div>
-            <div class="list-item"><span>• Frango (coxinha / tulipa):</span><span>${calc.frangoKg || 0} kg</span></div>
             <div class="list-item"><span>• Pão de Alho:</span><span>${calc.paoDeAlhoUnidades || 0} un.</span></div>
             <div class="list-item"><span>• Queijo Coalho:</span><span>${calc.queijoCoalhoEspetos || 0} espetos</span></div>
           </div>
@@ -737,10 +736,6 @@ export default function AdminPage() {
                   <div className="flex justify-between items-center">
                     <span>• Linguiça toscana / artesanal:</span>
                     <span className="font-bold text-white">{activeCalc?.linguicaKg || 0} kg</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>• Frango (coxinha da asa / tulipa):</span>
-                    <span className="font-bold text-white">{activeCalc?.frangoKg || 0} kg</span>
                   </div>
                 </div>
               </div>
