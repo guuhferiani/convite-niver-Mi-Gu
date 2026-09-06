@@ -232,13 +232,12 @@ export default function AdminPage() {
       <html lang="pt-BR">
       <head>
         <meta charset="UTF-8">
-        <title>Lista de Acesso Portaria — Aniversário Gustavo & Michele</title>
+        <title></title>
         <style>
-          @page { size: A4; margin: 12mm; }
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #111827; margin: 0; padding: 15px; font-size: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .header { border-bottom: 2px solid #111827; padding-bottom: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: flex-end; }
+          @page { size: A4; margin: 0; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #111827; margin: 0; padding: 14mm 16mm; font-size: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .header { border-bottom: 2px solid #111827; padding-bottom: 10px; margin-bottom: 14px; }
           .title { font-size: 18px; font-weight: 800; margin: 0; color: #000; }
-          .subtitle { font-size: 11px; color: #4b5563; margin-top: 3px; }
           .info-banner { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
           .info-item { font-size: 11px; }
           .info-item strong { color: #000; font-size: 13px; }
@@ -249,28 +248,18 @@ export default function AdminPage() {
           th { background: #f3f4f6; padding: 10px 14px; font-size: 11px; text-transform: uppercase; font-weight: 800; color: #374151; border-bottom: 2px solid #9ca3af; }
           .footer { margin-top: 30px; display: flex; justify-content: space-between; font-size: 11px; color: #4b5563; border-top: 1px solid #d1d5db; padding-top: 15px; }
           @media print {
-            body { padding: 0; }
+            body { padding: 12mm 14mm; }
           }
         </style>
       </head>
       <body>
         <div class="header">
-          <div>
-            <h1 class="title">📋 LISTA DE ACESSO PARA PORTARIA / RECEPÇÃO</h1>
-            <div class="subtitle">Evento: Comemoração de Aniversário no Salão de Festas • Rua Cajuru 89, Belenzinho</div>
-          </div>
-          <div style="text-align: right; font-size: 10px; color: #6b7280;">
-            <div>Data do Evento: <strong>06/09/2026 (Domingo)</strong></div>
-            <div>Horário: <strong>A partir das 13h30</strong></div>
-          </div>
+          <h1 class="title">📋 LISTA DE ACESSO PARA PORTARIA / RECEPÇÃO</h1>
         </div>
 
         <div class="info-banner">
           <div class="info-item">
             Anfitriões: <strong>Gustavo & Michele</strong>
-          </div>
-          <div class="info-item">
-            Total Autorizados: <strong>${confirmados.length} Pessoas</strong> (${stats.totalAdultos || 0} Adultos • ${stats.totalCriancas || 0} Crianças)
           </div>
           <div class="info-item" style="color: #059669; font-weight: bold;">
             ✓ Apenas Convidados Confirmados
